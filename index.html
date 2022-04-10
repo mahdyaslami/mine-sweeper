@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mine sweeper</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        html,
+        body,
+        #app {
+            font-family: sans-serif;
+            height: 100%;
+            min-height: 0;
+            min-width: 0;
+            width: 100%;
+        }
+
+        .map-wrapper {
+            align-items: center;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            justify-content: center;
+        }
+
+        .row {
+            display: flex;
+        }
+
+        .tile {
+            align-items: center;
+            background-color: lightgray;
+            border: solid 1px silver;
+            display: flex;
+            font-size: 50px;
+            height: 100px;
+            justify-content: center;
+            width: 100px;
+            cursor: pointer;
+        }
+
+        .tile:hover {
+            background-color: rgb(188, 223, 174);
+            border-color: rgb(131, 170, 131);
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://unpkg.com/vue@3"></script>
+
+    <div id="app">
+        <div class="map-wrapper">
+            <div v-for="(row, xIndex) in map" :key="xIndex" class="row">
+                <div v-for="(tile, yIndex) in row"
+                    :key="yIndex"
+                    @click="select(xIndex, yIndex)"
+                    @click.right.prevent="toggleFlag(tile)"
+                    class="tile"
+                    :style="{ 'background-color': getTileBackgroundColor(tile) }">
+                    {{ getTileContent(tile) }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        const EMPTY = 0
+        const BOMB = -1
+        const NO_FLAG = 0
+        const FLAG = '🚩'
+        const FLAG_QUESTION = '❓'
+
+        Vue.createApp({
+            data() {
+                return {
+                    bombsCount: 4,
+
+                    map: [],
+
+                    size: {
+                        xLength: 9,
+                        yLength: 9,
+                    },
+
+                    bombPositions: []
+                }
+            },
+
+            methods: {
+                initMap() {
+                    this.generateMap()
+
+                    for (let index = 0; index < this.bombsCount; index++) {
+                        const randomX = this.randomBetween(0, this.size.xLength - 1)
+                        const randomY = this.randomBetween(0, this.size.yLength - 1)
+
+                        if (this.map[randomX][randomY].value === BOMB) {
+                            index--
+                        } else {
+                            this.map[randomX][randomY].value = BOMB
+                            this.bombPositions.push({
+                                x: randomX,
+                                y: randomY
+                            })
+                            this.initBombsCount(randomX, randomY)
+                        }
+                    }
+                },
+
+                generateMap() {
+                    for (let xIndex = 0; xIndex < this.size.xLength; xIndex++) {
+                        this.map.push([])
+
+                        for (let yIndex = 0; yIndex < this.size.yLength; yIndex++) {
+                            this.map[xIndex].push({
+                                value: EMPTY,
+                                displayValue: NO_FLAG,
+                                visible: false,
+                            })
+                        }
+                    }
+                },
+
+                randomBetween(min, max) {
+                    return Math.floor(
+                        Math.random() * (max - min) + min
+                    )
+                },
+
+                initBombsCount(x, y) {
+                    this.neighborPoke(x, y, (i, j) => {
+                        if (this.map[i][j].value !== BOMB) {
+                            this.map[i][j].value++
+                        }
+                    })
+                },
+
+                select(x, y) {
+                    const selectedTile = this.map[x][y]
+
+                    if (selectedTile.value === BOMB) {
+                        this.revealBombs()
+                    } else {
+                        this.revealTile(selectedTile, { x: x, y: y })
+                    }
+                },
+
+                revealBombs() {
+                    this.bombPositions.forEach(bomb => {
+                        this.map[bomb.x][bomb.y].visible = true
+                    })
+                },
+
+                revealTile(tile, position) {
+                    if (tile.visible) {
+                        return;
+                    }
+
+                    switch (tile.value) {
+                        case EMPTY:
+                            tile.visible = true
+                            this.revealNeighborTiles(tile, position)
+                            break;
+                        default:
+                            tile.visible = true
+                    }
+                },
+
+                revealNeighborTiles(tile, position) {
+                    this.neighborPoke(
+                        position.x,
+                        position.y,
+                        (i, j) => this.revealTile(this.map[i][j], {
+                            x: i,
+                            y: j
+                        })
+                    )
+                },
+
+                neighborPoke(x, y, callback) {
+                    for (let i = x - 1; i <= x + 1; i++) {
+                        if (i < 0 || i >= this.size.xLength) {
+                            continue;
+                        }
+
+                        for (let j = y - 1; j <= y + 1; j++) {
+                            if (j < 0 || j >= this.size.yLength) {
+                                continue;
+                            }
+
+                            callback(i, j)
+                        }
+                    }
+                },
+
+                getTileContent(tile) {
+                    if (!tile.visible) {
+                        return tile.displayValue !== NO_FLAG ? tile.displayValue : ''
+                    }
+
+                    switch (tile.value) {
+                        case EMPTY:
+                            return ''
+                        case BOMB:
+                            return '💣'
+                        default:
+                            return tile.value
+                    }
+                },
+
+                getTileBackgroundColor(tile) {
+                    if (tile.visible) {
+
+                        switch (tile.value) {
+                            case EMPTY:
+                                return '#eef'
+                            case BOMB:
+                                return '#e22'
+                            default:
+                                const dangerLevel = 8 - tile.value
+                                return `#${dangerLevel}${dangerLevel}f`
+                        }
+                    }
+                },
+
+                toggleFlag(tile) {
+                    if (tile.displayValue === NO_FLAG) {
+                        tile.displayValue = FLAG
+                    } else if (tile.displayValue === FLAG) {
+                        tile.displayValue = FLAG_QUESTION
+                    } else if (tile.displayValue === FLAG_QUESTION) {
+                        tile.displayValue = NO_FLAG
+                    }
+                }
+            },
+
+            mounted() {
+                this.initMap()
+            }
+        }).mount('#app')
+    </script>
+</body>
+
+</html>
