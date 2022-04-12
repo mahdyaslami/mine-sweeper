@@ -62,9 +62,12 @@
     <div id="app">
         <div class="map-wrapper">
             <div v-for="(row, xIndex) in map" :key="xIndex" class="row">
-                <div v-for="(tile, yIndex) in row" :key="yIndex" @click="select(xIndex, yIndex)"
+                <div v-for="(tile, yIndex) in row"
+                    :key="yIndex"
+                    :style="{ 'background-color': tile.backgroundColor }"
+                    @click="select(xIndex, yIndex)"
                     @click.right.prevent="toggleFlag(tile)" class="tile"
-                    :style="{ 'background-color': tile.backgroundColor }">
+                    >
                     {{ tile.displayValue() }}
                 </div>
             </div>
@@ -143,10 +146,12 @@
                 select(x, y) {
                     const selectedTile = this.map[x][y]
 
-                    if (selectedTile.value === BOMB) {
-                        this.revealBombs()
-                    } else {
-                        this.revealTile(selectedTile, { x: x, y: y })
+                    if (selectedTile.flag === 0) {
+                        if (selectedTile.value === BOMB) {
+                            this.revealBombs()
+                        } else {
+                            this.revealTile(selectedTile, { x: x, y: y })
+                        }
                     }
                 },
 
