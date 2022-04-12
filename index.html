@@ -62,13 +62,10 @@
     <div id="app">
         <div class="map-wrapper">
             <div v-for="(row, xIndex) in map" :key="xIndex" class="row">
-                <div v-for="(tile, yIndex) in row"
-                    :key="yIndex"
-                    @click="select(xIndex, yIndex)"
-                    @click.right.prevent="toggleFlag(tile)"
-                    class="tile"
-                    :style="{ 'background-color': getTileBackgroundColor(tile) }">
-                    {{ getTileContent(tile) }}
+                <div v-for="(tile, yIndex) in row" :key="yIndex" @click="select(xIndex, yIndex)"
+                    @click.right.prevent="toggleFlag(tile)" class="tile"
+                    :style="{ 'background-color': tile.backgroundColor }">
+                    {{ tile.displayValue() }}
                 </div>
             </div>
         </div>
@@ -78,9 +75,7 @@
     <script>
         const EMPTY = 0
         const BOMB = -1
-        const NO_FLAG = 0
-        const FLAG = '🚩'
-        const FLAG_QUESTION = '❓'
+        
 
         Vue.createApp({
             data() {
@@ -109,7 +104,7 @@
                         if (this.map[randomX][randomY].value === BOMB) {
                             index--
                         } else {
-                            this.map[randomX][randomY].value = BOMB
+                            this.map[randomX][randomY] = createBombTile()
                             this.bombPositions.push({
                                 x: randomX,
                                 y: randomY
@@ -124,11 +119,9 @@
                         this.map.push([])
 
                         for (let yIndex = 0; yIndex < this.size.yLength; yIndex++) {
-                            this.map[xIndex].push({
-                                value: EMPTY,
-                                displayValue: NO_FLAG,
-                                visible: false,
-                            })
+                            this.map[xIndex].push(
+                                createEmptyTile()
+                            )
                         }
                     }
                 },
@@ -205,44 +198,8 @@
                     }
                 },
 
-                getTileContent(tile) {
-                    if (!tile.visible) {
-                        return tile.displayValue !== NO_FLAG ? tile.displayValue : ''
-                    }
-
-                    switch (tile.value) {
-                        case EMPTY:
-                            return ''
-                        case BOMB:
-                            return '💣'
-                        default:
-                            return tile.value
-                    }
-                },
-
-                getTileBackgroundColor(tile) {
-                    if (tile.visible) {
-
-                        switch (tile.value) {
-                            case EMPTY:
-                                return '#eef'
-                            case BOMB:
-                                return '#e22'
-                            default:
-                                const dangerLevel = 8 - tile.value
-                                return `#${dangerLevel}${dangerLevel}f`
-                        }
-                    }
-                },
-
                 toggleFlag(tile) {
-                    if (tile.displayValue === NO_FLAG) {
-                        tile.displayValue = FLAG
-                    } else if (tile.displayValue === FLAG) {
-                        tile.displayValue = FLAG_QUESTION
-                    } else if (tile.displayValue === FLAG_QUESTION) {
-                        tile.displayValue = NO_FLAG
-                    }
+                    tile.flag = (tile.flag + 1) % 3
                 }
             },
 
@@ -250,6 +207,68 @@
                 this.initMap()
             }
         }).mount('#app')
+
+        function createBombTile() {
+            return {
+                value: BOMB,
+
+                displayValue() {
+                    if (this.visible) {
+                        return '💣'
+                    }
+
+                    return getFlag(this.flag)
+                },
+
+                get backgroundColor() {
+                    if (this.visible) {
+                        return '#e22'
+                    }
+                },
+
+                flag: 0,
+
+                visible: false,
+            }
+        }
+
+        function createEmptyTile() {
+            return {
+                value: EMPTY,
+
+                displayValue() {
+                    if (this.visible) {
+                        if (this.value === EMPTY) {
+                            return ''
+                        }
+
+                        return this.value
+                    } else {
+                        return getFlag(this.flag)
+                    }
+                    
+                },
+
+                get backgroundColor() {
+                    if (this.visible) {
+                        if (this.value === EMPTY) {
+                            return '#eef'
+                        }
+
+                        const dangerLevel = 8 - this.value
+                        return `#${dangerLevel}${dangerLevel}f`
+                    }
+                },
+
+                flag: 0,
+
+                visible: false,
+            }
+        }
+
+        function getFlag(key) {
+            return ['', '🚩', '❓'][key]
+        }
     </script>
 </body>
 
